@@ -1,0 +1,32 @@
+target
+.classpath
+.settings
+.project
+**/.gitignore
+
+# Ignore IntelliJ IDEA artifacts
+*.iml
+.idea
+*.ipr
+*.iws
+
+# Ignore Netbeans config files
+nbactions.xml
+
+# Ignore OSX system files
+.DS_Store
+
+# Ignore VS Code
+**/.vscode/
+
+# IDE run files
+.run
+
+# ignore all hidden files except .github and .gitignore
+.*
+!.gitignore
+!.gitattributes
+!.github
+
+# Ignore all log files
+*.log
