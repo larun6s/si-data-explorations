@@ -287,3 +287,80 @@ Map 1                    162                0            0            87.18     
 OK
 Time taken: 101.236 seconds
 ```
+
+```
+CREATE EXTERNAL TABLE IF NOT EXISTS si_app_data_dev.arun_11gb_structure
+(
+  crawl_timestamp BIGINT,
+  company_id STRING,
+  page_url STRING,
+  final_url STRING,
+  depth_level INT,
+  page_source STRING,
+  company_gid STRING,
+  url_type STRING
+)
+PARTITIONED BY (cid_hash INT)
+CLUSTERED BY (page_url) INTO 5 BUCKETS
+STORED AS PARQUET
+LOCATION 's3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/output/partition-bucketed-final/';
+
+
+INSERT INTO TABLE si_app_data_dev.arun_11gb_structure
+SELECT *
+FROM si_app_data_dev.arun_11gb_table;
+```
+
+SET hive.exec.dynamic.partition=true;
+SET hive.exec.dynamic.partition.mode=nonstrict;
+
+-- Insert data from the source_table into the destination_table with dynamic partitioning.
+-- This script will insert data into the destination table while determining the partition value from the source table.
+INSERT OVERWRITE TABLE si_app_data_dev.arun_11gb_structure
+PARTITION (cid_hash)
+SELECT *, cid_hash AS destination_partition_value FROM si_app_data_dev.arun_11gb_table limit 2;
+
+
+LOAD DATA INPATH 's3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/output/partition50-8/cid_hash=0' INTO TABLE si_app_data_dev.arun_11gb_structure PARTITION (cid_hash=51);
+
+SELECT numBuckets, bucketColumns FROM si_app_data_dev.arun_11gb_structure;
+
+
+SHOW TABLE EXTENDED LIKE  si_app_data_dev.arun_11gb_structure;
+
+
+We have 30TB of crawl data. Following is the schema
+```
+{
+        "namespace": "com.sixsense.dapy.ndepth",
+        "type": "record",
+        "name": "PageRecord",
+        "fields":
+        [
+        {"name": "crawl_timestamp", "type": "long"},
+        {"name": "company_id", "type": "string"},
+        {"name": "page_url", "type": "string"},
+        {"name": "final_url", "type": "string"},
+        {"name": "depth_level", "type": "int"},
+        {"name": "page_source", "type": "string"},
+        {"name": "company_gid", "type": "string"},
+        {"name": "url_type", "type": "string"}
+        ]
+}
+```
+company_gis cardinality is 17M
+page_url cardinality is 800M
+depth cardinality is 3
+we need to create external tables on them to efficiently query records pertaining to 
+1. a page_url
+2. a page_url and a company_gid
+3. a company_gid and depth
+4. a company_gid
+
+
+So, we tried to partition the data by company_gid and bucket by page_url. However, encountered blockers continuously.
+We tried the following
+taken relatively smaller data i.e. 4TB with company_gid, page_url cardinality being 1M, 100M respectively. But, could not partition as aggregations failed with different memory related errors for multiple attempts.
+however, we could succeeded with 11gb of data.
+
+So, I am curious to understand whether 6si platforms has limitations w.r.t. data size, cardinality etc. 

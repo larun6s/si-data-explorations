@@ -1,11 +1,11 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, expr
 
-spark = SparkSession.builder.appName("Arun-NDepth-Bi-weekly-partition").getOrCreate()
+spark = SparkSession.builder.appName("longrunning_ndepth-4tb-partition").getOrCreate()
 df = spark.read.parquet("s3a://6si-customers-adhoc/test_navjot/dacq_output/ndepth/crawl-output-parquet/bi-weekly/2023-10-17/")
-df = df.withColumn("cid_hash", expr("abs(hash(company_gid)) % 50"))
-output_path = "s3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/output/partition50"
-df = df.write.partitionBy("cid_hash").save(output_path)
+df = df.withColumn("cid_hash", expr("abs(hash(company_gid)) % 200"))
+df = df.repartition(200, "company_gid")
+df = df.write.partitionBy("cid_hash").save("s3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/output/4TB")
 spark.stop()
 
 # UI -> http://rm2-spark.prod1.6si.com:8088/cluster/app/application_1694772359728_486545 -> falied one
@@ -60,15 +60,18 @@ df.write.partitionBy("cid_hash").save(output_path)
 spark.stop()
 
 
+spark.read.parquet("s3a://6si-customers-adhoc/test_navjot/dacq_output/ndepth/crawl-output-parquet/bi-weekly/2023-10-17/").withColumn("cid_hash", expr("abs(hash(company_gid)) % 50")).partitionBy("cid_hash").explain()
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, expr
-spark = SparkSession.builder.appName("Arun-NDepth-Bi-weekly-partition").getOrCreate()
+spark = SparkSession.builder.appName("Arun-NDepth-Bi-weekly-partition-10").getOrCreate()
 ip_path = "s3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/input/"
 #ip_path = "s3a://6si-customers-adhoc/test_navjot/dacq_output/ndepth/crawl-output-parquet/bi-weekly/2023-10-17/"
 df = spark.read.parquet(ip_path)
-df = df.withColumn("cid_hash", expr("abs(hash(company_gid)) % 50"))
-df = df.repartition(50,"cid_hash")
+# df = df.withColumn("cid_hash", expr("abs(hash(company_gid)) % 50"))
+df = df.repartition(50, "company_gid")
 # Continue with your Spark operations on the repartitioned DataFrame
-output_path = "s3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/output/partition50-8"
-df.write.partitionBy("cid_hash").save(output_path)
+output_path = "s3a://6si-customers-adhoc/test_lak/ndepth_partitioning/2023-10-31/output/partition50-11"
+# df.write.partitionBy("cid_hash").save(output_path)
+df.write.save(output_path)
 spark.stop()
